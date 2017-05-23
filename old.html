@@ -1,0 +1,448 @@
+<div id="container">
+<canvas id="c" width="600" height="600"></canvas>
+<script src="minimize.js"></script>
+<div id="right">
+
+<table>
+<pre>
+flerp - sin(r) = cos(x) + cos(y)
+</pre>
+
+<tr>
+<td>x</td>
+<td><select>
+	<option></option>
+	<option selected>X</option>
+	<option>Y</option>
+</select>
+</td>
+<td></td>
+</tr>
+
+<tr>
+<td>y</td>
+<td><select>
+	<option></option>
+	<option>X</option>
+	<option selected>Y</option>
+</select>
+</td>
+<td></td>
+</tr>
+
+<tr>
+<td>r</td>
+<td><select>
+	<option></option>
+	<option>X</option>
+	<option>Y</option>
+	<option selected>r</option>
+</select>
+</td>
+<td></td>
+</tr>
+
+
+<tr>
+<td>flerp</td>
+<td><select>
+	<option></option>
+	<option>X</option>
+	<option>Y</option>
+</select>
+</td>
+<td><input type="range" id="flerpdar" oninput="update(this.value)" min="-4" max="4" step="0.001"></td>
+</tr>
+
+</table>
+
+
+</div>
+</div>
+
+
+<div id="point"></div>
+
+<style>
+
+#container {
+	display: flex;
+}
+
+#right {
+	padding: 0 20px;
+}
+
+canvas {
+	border: 1px solid rgba(128, 128, 128, 0.23);
+	width: 300px;
+	height: 300px;
+}
+
+input {
+	width: 200px;
+}
+
+#point {
+	position: absolute;;
+	background: blue;
+	width: 5px;
+	height: 5px;
+	border-radius: 4px;
+	margin-left: -2px;
+	margin-top:-2px;
+	pointer-events: none;
+}
+</style>
+
+
+<script>
+var offset = 0;
+
+function update(x){
+	// console.log(x)
+	offset = +x;
+	render()
+}
+
+function real(x){
+	return x[0]
+}
+
+function imag(x){
+	return x[1]
+}
+
+function sin(x){
+	return [Math.sin(real(x)) * Math.cosh(imag(x)),
+			Math.cos(real(x)) * Math.sinh(imag(x))]
+}
+
+function cos(x){
+	return [Math.cos(real(x)) * Math.cosh(imag(x)),
+			-Math.sin(real(x)) * Math.sinh(imag(x))]
+}
+
+function exp(x){
+	var r = Math.exp(real(x));
+	return [r * Math.cos(imag(x)), r * Math.sin(imag(x))]
+}
+
+function log(x){
+	return [
+		Math.log(Math.sqrt(real(x)*real(x) + imag(x)*imag(x))),
+		Math.atan2(imag(x), real(x))
+	]
+}
+
+function mul(a, b){
+	return [
+		-imag(a)*imag(b) + real(a)*real(b),
+		imag(a)*real(b) + real(a)*imag(b)
+	]
+}
+
+function sub(a, b){
+	return [real(a) - real(b), imag(a) - imag(b)]
+}
+
+function add(a, b){
+	return [real(a) + real(b), imag(a) + imag(b)]
+}
+
+function div(a, b){
+	return exp(sub(log(a), log(b)))
+}
+
+function sqrt(x){
+	return pow(x, [0.5, 0])
+}
+
+function pow(b, e){
+	return exp(mul(e, log(b)))
+}
+
+
+var canvas = document.getElementById('c'),
+	ctx = canvas.getContext('2d')
+
+
+
+
+function fn(x, y, z){
+	function lhs(x, y){
+		return z - Math.sin(Math.sqrt(x*x + y * y))
+	}
+
+	function rhs(x, y){
+		return Math.cos(x) + Math.cos(y)
+	}
+
+	return lhs(x, y) - rhs(x, y)
+}
+
+
+
+function eq(x, y){
+	return fn(x, y, offset)
+	
+	// return imag(sub(pow([-1, 0], [x, 0]), [y, 0]))
+
+	// var r = Math.sqrt(x*x + y*y);
+	// return real(add(add(sin([r, 0]),cos([x, 0])), cos([y, 0])))
+
+	// return 5 * Math.sin(100/(x - 10) ) - y + 15
+	// return Math.sin(Math.sqrt(x*x + y * y)) + Math.cos(x) + Math.cos(y) + offset
+
+	// return Math.abs(x + y - 10)
+	// return Math.sin(x) + 2 - yz
+
+	// return x*x + y*y - offset
+}
+
+
+// function fragShader3D(x, y, z, dx, dy, dz){
+// 	// Evaluate all 6 adjacent +/- neighbor pixels
+// 	var fneg0 = eq(x - dx, y, z),
+// 		fneg1 = eq(x, y - dy, z),
+// 		fneg2 = eq(x, y, z - dz)
+// 	var fpos0 = eq(x + dx, y, z),
+// 		fpos1 = eq(x, y + dy, z),
+// 		fpos2 = eq(x, y, z + dz);
+
+// 	// Compute the x and y and z slopes
+// 	var slop0 = (fpos0 - fneg0)/2,
+// 		slop1 = (fpos1 - fneg1)/2,
+// 		slop2 = (fpos2 - fneg2)/2;
+
+// 	// Compute the gradient (the shortest point on the curve is assumed to lie in this direction)
+// 	var slmag = Math.sqrt(slop0 * slop0 + slop1 * slop1 + slop2 * slop2)
+// 	var grad0 = slop0 / slmag,
+// 		grad1 = slop1 / slmag,
+// 		grad2 = slop2 / slmag;
+
+// 	var b = slop0 * grad0 + slop1 * grad1 + slop2 * grad2;
+
+// 	var distanceToCurve = Math.abs(f / b)
+	
+// 	var thickness = 2;
+
+// 	var edgeAlpha = Math.min(1, Math.max(0, Math.abs(thickness) - distanceToCurve))
+	
+// 	return edgeAlpha;
+// }
+
+
+// based on https://github.com/evanw/theta/blob/d33ad13a5b9dd2687dc34c3a27cf6e4c01cb9a56/glslx/shaders.glslx#L85
+
+function fragShader(x, y, dx, dy){
+	var z = eq(x, y);
+
+	// Evaluate all 4 adjacent +/- neighbor pixels
+	var zneg0 = eq(x - dx, y),
+		zneg1 = eq(x, y - dy);
+	var zpos0 = eq(x + dx, y),
+		zpos1 = eq(x, y + dy);
+
+	// Compute the x and y slopes
+	var slop0 = (zpos0 - zneg0)/2,
+		slop1 = (zpos1 - zneg1)/2;
+	
+	// Compute the gradient (the shortest point on the curve is assumed to lie in this direction)
+	var slmag = Math.sqrt(slop0 * slop0 + slop1 * slop1)
+	var grad0 = slop0 / slmag,
+		grad1 = slop1 / slmag;
+
+	// Use the parabola "a*t^2 + b*t + z = 0" to approximate the function along the gradient
+	var a = ((zneg0 + zpos0)/2 - z) * (grad0 * grad0) +
+			((zneg1 + zpos1)/2 - z) * (grad1 * grad1);
+	var b = slop0 * grad0 + slop1 * grad1;
+
+	// The distance to the curve is the closest solution to the parabolic equation
+	var distanceToCurve = 0;
+	var thickness = 2;
+
+	if(Math.abs(a) < 1e-6){ 
+		// linear equation
+		distanceToCurve = Math.abs(z / b)
+	}else{ 
+		// quadratic equation
+		var discriminant = b * b - 4 * a * z;
+		if(discriminant < 0){
+			distanceToCurve = thickness;
+		}else{
+			discriminant = Math.sqrt(discriminant);
+			distanceToCurve = Math.min(Math.abs(b + discriminant), Math.abs(b - discriminant)) / Math.abs(2 * a);
+		}
+	}
+	var edgeAlpha = Math.min(1, Math.max(0, Math.abs(thickness) - distanceToCurve))
+	
+	return edgeAlpha;
+}
+
+function fastFragShader(minX, minY, maxX, maxY, sX, sY){
+	var data = new Float64Array(sX * sY);
+	var width = maxX - minX,
+		height = maxY - minY;
+	for(var i = 0; i < sX; i++){
+		for(var j = 0; j < sY; j++){
+			data[j * sX + i] = eq(minX + width * (i / sX),
+								  minY + height * (j / sY))
+		}
+	}
+	var alpha = new Uint8Array(sX * sY);
+	var thickness = 2;
+	for(var i = 1; i < sX - 1; i++){
+		for(var j = 1; j < sY - 1; j++){
+			var z = data[j * sX + i]
+			// Evaluate all 4 adjacent +/- neighbor pixels
+			var zneg0 = data[j * sX + i - 1],
+				zpos0 = data[j * sX + i + 1];
+			var zneg1 = data[(j - 1) * sX + i],
+				zpos1 = data[(j + 1) * sX + i];
+
+			// Compute the x and y slopes
+			var slop0 = (zpos0 - zneg0) / 2,
+				slop1 = (zpos1 - zneg1) / 2;
+			
+			// Compute the gradient (the shortest point on the curve is assumed to lie in this direction)
+			var slmag = Math.sqrt(slop0 * slop0 + slop1 * slop1)
+			var grad0 = slop0 / slmag,
+				grad1 = slop1 / slmag;
+
+			var b = slop0 * grad0 + slop1 * grad1;
+			var distanceToCurve = Math.abs(z / b);
+			var edgeAlpha = Math.min(1, Math.max(0, Math.abs(thickness) - distanceToCurve))
+			alpha[j * sX + i] = 255 * edgeAlpha;
+		}
+	}
+	return alpha
+}
+
+
+
+function render(){
+	var im = ctx.createImageData(canvas.width, canvas.height)
+	stuff = fastFragShader(-10, -10, 10, 10, canvas.width, canvas.height);
+
+	for(var i = 0; i < canvas.width; i++){
+		for(var j = 0; j < canvas.height; j++){
+			im.data[(i+j*canvas.width)*4+1] = 127
+			im.data[(i+j*canvas.width)*4+2] = 255
+			im.data[(i+j*canvas.width)*4+3] = stuff[i * canvas.width + j]
+		}
+	}
+
+	ctx.putImageData(im, 0, 0)	
+}
+
+render()
+
+
+var is_dragging = false;
+
+
+canvas.onmousedown = function(e){
+	is_dragging = true;
+
+	e.preventDefault()
+	e.stopPropagation()
+	return false
+}
+
+canvas.onmouseup = function(e){
+	is_dragging = false;
+
+	e.preventDefault()
+	e.stopPropagation()
+	return false
+}
+
+
+function transformXY(i, j, minX, minY, maxX, maxY, sX, sY){
+	var width = maxX - minX,
+		height = maxY - minY;
+
+
+	return [minX + width * (i / sX), minY + height * (j / sY)]
+}
+
+canvas.onmousemove = function(e){
+	e.preventDefault()
+
+	var box = canvas.getBoundingClientRect();
+	
+	var pixrat = 2;
+
+	var x = (e.clientX - box.left) * pixrat,
+		y = (e.clientY - box.top) * pixrat;
+
+	var min_dist = Infinity,
+		minX = 0, minY = 0;
+	for(var i = 0; i < canvas.width; i++){
+		for(var j = 0; j < canvas.height; j++){
+			if(stuff[i * canvas.width + j] > 128){
+				var dist = Math.hypot(i - x, y - j)
+				if(dist < min_dist){
+					min_dist = dist;
+					minX = i / pixrat;
+					minY = j / pixrat;
+				}
+			}
+		}
+	}
+
+	// try {
+		// console.log(runXY(minX * pixrat, minY * pixrat, -10, -10, 10, 10, canvas.width, canvas.height))
+
+		var result = minimize(function(v){
+			// console.log(v)
+			var XY = transformXY(v[0] * pixrat, v[1] * pixrat, -10, -10, 10, 10, canvas.width, canvas.height);
+
+
+			var val = Math.pow(eq(XY[0], XY[1]), 2)
+			// console.log(val, v[0], v[1])
+			return val
+		}, [minX, minY])
+
+		minX = result.solution[0]
+		minY = result.solution[1]
+
+		// console.log(result.f, 'result')
+	// } catch (err) {}
+
+	
+
+	// console.log(mini, minj)
+
+
+	// console.log(is_dragging)
+	if(is_dragging){
+		// console.log(eq(minX, minY))
+		// console.log(runXY(minX * pixrat, minY * pixrat, -10, -10, 10, 10, canvas.width, canvas.height))
+		minX = x / pixrat
+		minY = y / pixrat
+		var XY = transformXY(x, y, -10, -10, 10, 10, canvas.width, canvas.height)
+
+		// console.log(Math.pow(eq(XY[0], XY[1]), 2))
+		var result = minimize(function(v){
+			return Math.pow(fn(XY[0], XY[1], v[0]), 2)
+		}, [offset])
+
+		// console.log('drag', )
+		offset = result.solution[0];
+		document.getElementById('flerpdar').value = offset
+
+		render()
+
+	}
+
+	var p = document.getElementById('point')
+	p.style.left = (minX + box.left) + 'px'
+	p.style.top = (minY + box.top) + 'px'
+
+	p.style.background = is_dragging ? 'red' : 'blue'
+}
+
+
+</script>

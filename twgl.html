@@ -1,0 +1,134 @@
+<style>
+canvas {
+      box-shadow: 0px 0px 5px 1px rgba(0, 0, 0, 0.19);
+    border-radius: 3px;
+    width: 300px; 
+    height: 300px
+}
+
+body {
+  margin: 20px;
+}
+</style>
+<canvas id="c" width="600" height="600"></canvas>
+
+  <script id="vertshader" type="notjs">
+attribute vec2 position2;
+attribute vec4 position;
+varying vec2 _coord2;
+
+void main() {
+  _coord2 = position.xy;
+  gl_Position = position;
+  
+  // gl_Position = vec4(position2, 0.0, 1.0);
+}
+  </script>
+  <script id="fragshader" type="notjs">
+  #extension GL_OES_standard_derivatives : enable
+
+precision mediump float;
+
+uniform float thicknessAndMode;
+
+// uniform vec2 resolution;
+// uniform float time;
+varying vec2 _coord2;
+uniform vec4 color;
+
+
+float eq(float x, float y){
+  return sin(20.0 * x) / (20.0 * x) / 2.0 - y;
+}
+
+void main() {
+  // vec4 color = vec4(0, 0.5, 1, 1);
+
+  float x = _coord2.x;
+  float y = _coord2.y;
+  float dx = dFdx(x);
+  float dy = dFdy(y);
+  float z = eq(x, y);
+
+  // Evaluate all 4 adjacent +/- neighbor pixels
+  vec2 z_neg = vec2(eq(x - dx, y), eq(x, y - dy));
+  vec2 z_pos = vec2(eq(x + dx, y), eq(x, y + dy));
+
+  // Compute the x and y slopes
+  vec2 slope = (z_pos - z_neg) * 0.5;
+
+  // Compute the gradient (the shortest point on the curve is assumed to lie in this direction)
+  vec2 gradient = normalize(slope);
+
+  // Use the parabola "a*t^2 + b*t + z = 0" to approximate the function along the gradient
+  float a = dot((z_neg + z_pos) * 0.5 - z, gradient * gradient);
+  float b = dot(slope, gradient);
+
+  // The distance to the curve is the closest solution to the parabolic equation
+  float distanceToCurve = 0.0;
+  float thickness = abs(thicknessAndMode);
+
+  // Linear equation: "b*t + z = 0"
+  if (abs(a) < 1.0e-6) {
+    distanceToCurve = abs(z / b);
+  }
+
+  // Quadratic equation: "a*t^2 + b*t + z = 0"
+  else {
+    float discriminant = b * b - 4.0 * a * z;
+    if (discriminant < 0.0) {
+      distanceToCurve = thickness;
+    } else {
+      discriminant = sqrt(discriminant);
+      distanceToCurve = min(abs(b + discriminant), abs(b - discriminant)) / abs(2.0 * a);
+    }
+  }
+
+  // Antialias the edge using the distance from the curve
+  float edgeAlpha = clamp(abs(thickness) - distanceToCurve, 0.0, 1.0);
+
+  // Combine edge and area for color
+  gl_FragColor = color * (
+    thicknessAndMode == 0.0 ? clamp(0.5 + z / b, 0.0, 1.0) * 0.25 :
+    thicknessAndMode < 0.0 ? mix(edgeAlpha, 1.0, z > 0.0 ? 0.25 : 0.0) :
+    edgeAlpha);
+}
+  </script>
+<script src="twgl.js"></script>
+<script>
+    "use strict";
+    var gl = twgl.getWebGLContext(document.getElementById("c"));
+
+    gl.getExtension('OES_standard_derivatives')
+    var programInfo = twgl.createProgramInfo(gl, ["vertshader", "fragshader"]);
+
+    var arrays = {
+      position: [-1, -1, 0, 1, -1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1, 1, 0],
+      // thicknessAndMode: 2,
+      color: [0, 0.5, 1, 1]
+      // position2: {numComponents: 2, data: [-1, -1, 1, -1, -1, 1, 1, 1]}
+    };
+    var bufferInfo = twgl.createBufferInfoFromArrays(gl, arrays);
+
+    function render() {
+      // twgl.resizeCanvasToDisplaySize(gl.canvas);
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      var uniforms = {
+        // time: time * 0.001,
+        // resolution: [gl.canvas.width, gl.canvas.height],
+        thicknessAndMode: 2,
+        color: [0, 0.5, 1, 1]
+      };
+
+      gl.useProgram(programInfo.program);
+      twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+      twgl.setUniforms(programInfo, uniforms);
+      twgl.drawBufferInfo(gl, bufferInfo);
+
+      // requestAnimationFrame(render);
+    }
+    // requestAnimationFrame(render);
+
+    render()
+</script>

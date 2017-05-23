@@ -1,0 +1,13 @@
+<textarea id="equations">
+x = vx * t
+y = vy * t - 1/2 * g * t^2
+</textarea>
+
+
+
+<script src="math.js"></script>
+<script>
+function extract_equations(){
+	document.getElementById('equations').value.trim().split(/\n\s*/)
+}
+</script>
